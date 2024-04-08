@@ -1,57 +1,45 @@
-import { APP_BASE_HREF } from '@angular/common';
-import { CommonEngine } from '@angular/ssr';
+import {APP_BASE_HREF} from '@angular/common';
+import {CommonEngine} from '@angular/ssr';
 import express from 'express';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import {dirname, join, resolve} from 'node:path';
 import bootstrap from './src/main.server';
-import {createProxyMiddleware} from 'http-proxy-middleware';
+import {fileURLToPath} from 'node:url';
+import {createServer} from 'node:https';
 
 // import proxy.conf.js
-const PROXY_CONFIG = require('../../proxy.conf');
 
 // The Express app is exported so that it can be used by serverless Functions.
 export function app(): express.Express {
   const server = express();
-  const distFolder = join(process.cwd(), 'dist/ngx-oauth-sample/browser');
-  const indexHtml = existsSync(join(distFolder, 'index.original.html'))
-    ? join(distFolder, 'index.original.html')
-    : join(distFolder, 'index.html');
-
+  const serverDistFolder = dirname(fileURLToPath(import.meta.url));
+  const browserDistFolder = resolve(serverDistFolder, '../browser');
+  const indexHtml = join(serverDistFolder, 'index.server.html');
   const commonEngine = new CommonEngine();
 
+
   server.set('view engine', 'html');
-  server.set('views', distFolder);
+  server.set('views', browserDistFolder);
 
   // Example Express Rest API endpoints
   // server.get('/api/**', (req, res) => { });
   // Serve static files from /browser
-  server.get('*.*', express.static(distFolder, {
+  server.get('*.*', express.static(browserDistFolder, {
     maxAge: '1y'
   }));
 
-  for (const pConfig of PROXY_CONFIG) {
-    const {context, target, secure, changeOrigin} = pConfig;
-    if (context && context.length > 0) {
-      server.use(context, createProxyMiddleware({
-        target,
-        secure,
-        changeOrigin,
-      }));
-    }
-  }
-
   // All regular routes use the Angular engine
   server.get('*', (req, res, next) => {
-    const { protocol, originalUrl, baseUrl, headers } = req;
+    const {protocol, originalUrl, baseUrl, headers} = req;
 
     commonEngine
       .render({
         bootstrap,
         documentFilePath: indexHtml,
         url: `${protocol}://${headers.host}${originalUrl}`,
-        publicPath: distFolder,
+        publicPath: browserDistFolder,
         providers: [
-          { provide: APP_BASE_HREF, useValue: baseUrl },],
+          {provide: APP_BASE_HREF, useValue: baseUrl},
+        ],
       })
       .then((html) => res.send(html))
       .catch((err) => next(err));
@@ -61,23 +49,12 @@ export function app(): express.Express {
 }
 
 function run(): void {
-  const port = process.env['PORT'] || 4000;
-
-  // Start up the Node server
-  const server = app();
+  const port = process.env['PORT'] || 443;
+  const distFolder = dirname(fileURLToPath(import.meta.url))
+  const server = createServer(app());
   server.listen(port, () => {
     console.log(`Node Express server listening on http://localhost:${port}`);
   });
 }
 
-// Webpack will replace 'require' with '__webpack_require__'
-// '__non_webpack_require__' is a proxy to Node 'require'
-// The below code is to ensure that the server is run only when not requiring the bundle.
-declare const __non_webpack_require__: NodeRequire;
-const mainModule = __non_webpack_require__.main;
-const moduleFilename = mainModule && mainModule.filename || '';
-if (moduleFilename === __filename || moduleFilename.includes('iisnode')) {
-  run();
-}
-
-export default bootstrap;
+run()

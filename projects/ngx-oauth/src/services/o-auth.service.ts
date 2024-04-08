@@ -60,7 +60,7 @@ export class OAuthService {
     filter(Boolean),
     filter(config => !!config?.clientId),
     map(config => config as OpenIdConfig),
-    switchMap(config => !config.issuerPath && of(config) || this.http.get<OpenIdConfiguration>(`${config.issuerPath}/.well-known/openid-configuration`).pipe(
+    switchMap(config => !config.issuerPath && of(config) || this.http.get<OpenIdConfiguration>(`${config.issuerPath}/.well-known/openid-configuration?client_id=${config.clientId}`).pipe(
       tap(v => this.config = {
         ...v.authorization_endpoint && {authorizePath: v.authorization_endpoint} || {},
         ...v.token_endpoint && {tokenPath: v.token_endpoint} || {},

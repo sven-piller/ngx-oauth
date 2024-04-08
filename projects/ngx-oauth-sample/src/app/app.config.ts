@@ -10,10 +10,11 @@ import {OAuthInterceptor, provideOAuthConfig} from 'ngx-oauth';
 
 const sapCommerceConfig = {
   config: {
-    authorizePath: '/authorizationserver/oauth/authorize',
-    revokePath: '/authorizationserver/oauth/revoke',
+    // authorizePath: '/authorizationserver/oauth/authorize',
+    // tokenPath: '/authorizationserver/oauth/token',
+    // revokePath: '/authorizationserver/oauth/revoke',
+    issuerPath: '/authorizationserver',
     clientId: 'mobile_android',
-    tokenPath: '/authorizationserver/oauth/token',
     userPath: '/occ/v2/electronics-spa/users/current',
     clientSecret: 'secret',
     scope: 'basic'
